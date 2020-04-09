@@ -12,6 +12,7 @@ var vsprintf = require("sprintf-js").vsprintf;
 var LegacyClient = require('./legacyClient');
 var V10Client = require('./v10Client');
 var V11Client = require('./v11Client');
+var metricGather = require('./metric.js');
 
 function safeCall () {
   var callback = arguments[0];
@@ -192,6 +193,7 @@ var Connection = function(spec, socket, reconnectionKey, portal, dock) {
           const err_message = getErrorMessage(err);
           safeCall(callback, 'error', err_message);
           log.info('Login failed:', err_message);
+          metricGather.doNormalMetric('join_error', {room_id: "", client_id: client_id, err_msg: err_message});
           socket.disconnect();
         });
     });

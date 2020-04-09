@@ -31,6 +31,7 @@ var dataAccess = require('../../data_access');
 var logger = require('../../logger').logger;
 var requestHandler = require('../../requestHandler');
 var e = require('../../errors');
+var metricGather = require('../../metric.js');
 
 // Logger
 var log = logger.getLogger('RoomsResource');
@@ -42,10 +43,12 @@ exports.createRoom = function (req, res, next) {
     var authData = req.authData;
 
     if (typeof req.body !== 'object' || req.body === null || typeof req.body.name !== 'string' || req.body.name === '') {
+        metricGather.doNormalMetric('create_room_error', {room_id: "", room_name: "", err_msg: "invalid request body"});
         return next(new e.BadRequestError('Invalid request body'));
     }
 
     if (req.body.options && typeof req.body.options !== 'object') {
+        metricGather.doNormalMetric('create_room_error', {room_id: "", room_name: "", err_msg: "invalid room option"});
         return next(new e.BadRequestError('Invalid room option'));
     }
     req.body.options = req.body.options || {};
@@ -55,6 +58,7 @@ exports.createRoom = function (req, res, next) {
     dataAccess.room.create(authData.service._id, options, function(err, result) {
         if (!err && result) {
             log.debug('Room created:', req.body.name, 'for service', authData.service.name);
+            metricGather.doNormalMetric('create_room', {room_id: result._id, room_name: result.name});
             res.send(result);
 
             // Notify SIP portal if SIP room created
@@ -64,6 +68,7 @@ exports.createRoom = function (req, res, next) {
             }
         } else {
             log.info('Room creation failed', err ? err.message : options);
+            metricGather.doNormalMetric('create_room_error', {room_id: "", room_name: "", err_msg: err ? err.message : "unknown"});
             next(err || new e.AppError('Create room failed'));
         }
     });

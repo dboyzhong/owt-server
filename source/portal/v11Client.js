@@ -6,6 +6,7 @@
 
 var log = require('./logger').logger.getLogger('V11Client');
 var requestData = require('./requestDataValidator');
+var metricGather = require('./metric.js');
 
 var idPattern = /^[0-9a-zA-Z\-]+$/;
 function isValidIdString(str) {
@@ -121,6 +122,7 @@ var V11Client = function(clientId, sigConnection, portal) {
 
     socket.on('publish', function(pubReq, callback) {
       if(!that.inRoom){
+        metricGather.doNormalMetric('publish_error', {stream_id: "", err_msg: 'illegal request'});
         return safeCall(callback, 'error', 'Illegal request');
       }
 
@@ -131,7 +133,10 @@ var V11Client = function(clientId, sigConnection, portal) {
           return portal.publish(clientId, stream_id, req);
         }).then((result) => {
           safeCall(callback, 'ok', {id: stream_id});
-        }).catch(onError('publish', callback));
+        }).catch((err) => {
+          metricGather.doNormalMetric('publish_error', {stream_id: stream_id, err_msg: getErrorMessage(err).toLowerCase()});
+          return onError('publish', callback)
+        });
     });
 
     socket.on('unpublish', function(unpubReq, callback) {
@@ -162,6 +167,7 @@ var V11Client = function(clientId, sigConnection, portal) {
 
     socket.on('subscribe', function(subReq, callback) {
       if(!that.inRoom){
+        metricGather.doNormalMetric('subscribe_error', {client_id: "", subscription_id: "", err_msg: 'illegal request'});
         return safeCall(callback, 'error', 'Illegal request');
       }
 
@@ -172,7 +178,11 @@ var V11Client = function(clientId, sigConnection, portal) {
           return portal.subscribe(clientId, subscription_id, req);
         }).then((result) => {
           safeCall(callback, 'ok', {id: subscription_id});
-        }).catch(onError('subscribe', callback));
+        }).catch((err)=>{
+          metricGather.doNormalMetric('subscribe_error', {client_id: clientId, subscription_id: subscription_id, 
+            err_msg: getErrorMessage(err).toLowerCase()});
+          return onError('subscribe', callback);
+        });
     });
 
     socket.on('unsubscribe', function(unsubReq, callback) {

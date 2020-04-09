@@ -9,6 +9,11 @@ var url = require('url');
 var crypto = require('crypto');
 var log = require('./logger').logger.getLogger('Portal');
 var dataAccess = require('./data_access');
+var metricGather = require('./metric');
+
+var CONFERENCE_DURATION = 'conference_duration';
+var PUBLISH_DURATION = 'publish_duration';
+var SUBSCRIBE_DURATION = 'subscribe_duration';
 
 var Portal = function(spec, rpcReq) {
   var that = {},
@@ -73,10 +78,16 @@ var Portal = function(spec, rpcReq) {
       })
       .then(function(joinResult) {
         log.debug('join ok, result:', joinResult);
+        metricGather.doNormalMetric('join', {room_id: room_id, participant_id: participantId});
         participants[participantId] = {
           in_room: room_id,
           controller: room_controller
         };
+
+        let conference_metric = metricGather.newTimingMetric(participantId, CONFERENCE_DURATION, participantId);
+        conference_metric.addMetric('participant_id', participantId);
+        conference_metric.addMetric('err_msg', '');
+        conference_metric.addMetric('room_id', room_id);
 
         return {
           tokenCode: tokenCode,
@@ -92,6 +103,8 @@ var Portal = function(spec, rpcReq) {
 
   that.leave = function(participantId) {
     log.debug('participant leave:', participantId);
+    log.debug('metric group size: ', metricGather.size());
+    metricGather.finishGroup(participantId);
     if (participants[participantId]) {
       rpcReq.leave(participants[participantId].controller, participantId)
         .catch(function(reason) {
@@ -106,10 +119,18 @@ var Portal = function(spec, rpcReq) {
 
   that.publish = function(participantId, streamId, pubInfo) {
     log.debug('publish, participantId:', participantId, 'streamId:', streamId, 'pubInfo:', pubInfo);
+    let publishMetric = metricGather.newTimingMetric(participantId, 'publish_duration', streamId);
+    publishMetric.addMetric('participant_id', participantId);
+    publishMetric.addMetric('stream_id', streamId);
     if (participants[participantId] === undefined) {
+      publishMetric.addMetric('err_msg', 'participant has not joined');
+      metricGather.finishTimingMetric(participantId, 'publish_duration', streamId);
       return Promise.reject('Participant has NOT joined');
     }
 
+    publishMetric.addMetric('err_msg', '');
+    publishMetric.addMetric('room_id', participants[participantId].in_room);
+    metricGather.doNormalMetric('publish', {room_id: participants[participantId].in_room, participant_id: participantId, stream_id: streamId});
     return rpcReq.publish(participants[participantId].controller,
                           participantId,
                           streamId,
@@ -118,6 +139,7 @@ var Portal = function(spec, rpcReq) {
 
   that.unpublish = function(participantId, streamId) {
     log.debug('unpublish, participantId:', participantId, 'streamId:', streamId);
+    metricGather.finishTimingMetric(participantId, 'publish_duration', streamId);
     if (participants[participantId] === undefined) {
       return Promise.reject('Participant has NOT joined');
     }
@@ -141,10 +163,28 @@ var Portal = function(spec, rpcReq) {
 
   that.subscribe = function(participantId, subscriptionId, subDesc) {
     log.debug('subscribe, participantId:', participantId, 'subscriptionId:', subscriptionId, 'subDesc:', subDesc);
+    let subscribeMetric = metricGather.newTimingMetric(participantId, 'subscribe_duration', subscriptionId);
+    subscribeMetric.addMetric('participant_id', participantId);
+    subscribeMetric.addMetric('subscription_id', subscriptionId);
+    if (subDesc.media.audio && subDesc.media.audio.from) {
+      subscribeMetric.addMetric('audio_stream_id', subDesc.media.audio.from);
+    }  else {
+      subscribeMetric.addMetric('audio_stream_id', '');
+    }
+    if (subDesc.media.video && subDesc.media.video.from) {
+      subscribeMetric.addMetric('video_stream_id', subDesc.media.video.from);
+    }  else {
+      subscribeMetric.addMetric('video_stream_id', '');
+    }
     if (participants[participantId] === undefined) {
+      subscribeMetric.addMetric('err_msg', 'participant has not joined');
+      metricGather.finishTimingMetric(participantId, 'subscribe_duration', subscriptionId);
       return Promise.reject('Participant has NOT joined');
     }
 
+    subscribeMetric.addMetric('err_msg', '');
+    subscribeMetric.addMetric('room_id', participants[participantId].in_room);
+    metricGather.doNormalMetric('subscribe', {room_id: participants[participantId].in_room, participant_id: participantId, subscription_id: subscriptionId});
     return rpcReq.subscribe(participants[participantId].controller,
                             participantId,
                             subscriptionId,
@@ -153,6 +193,7 @@ var Portal = function(spec, rpcReq) {
 
   that.unsubscribe = function(participantId, subscriptionId) {
     log.debug('unsubscribe, participantId:', participantId, 'subscriptionId:', subscriptionId);
+    metricGather.finishTimingMetric(participantId, 'subscribe_duration', subscriptionId);
     if (participants[participantId] === undefined) {
       return Promise.reject('Participant has NOT joined');
     }
