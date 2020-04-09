@@ -7,6 +7,7 @@
 'use strict';
 
 var dbURL = process.env.DB_URL;
+var authSource = process.env.DB_AUTH_SOURCE;
 if (!dbURL) {
   throw 'DB_URL not found';
 }
@@ -23,6 +24,7 @@ var configFile = path.join(dirName, 'management_api.toml');
 var sampleServiceFile = path.resolve(dirName, '../extras/basic_example/samplertcservice.js');
 
 function prepareDB(next) {
+  let dbConnectURL = '';
   if (fs.existsSync(cipher.astore)) {
     cipher.unlock(cipher.k, cipher.astore, function cb (err, authConfig) {
       if (!err) {
@@ -34,11 +36,23 @@ function prepareDB(next) {
       } else {
         log.error('Failed to get mongodb auth:', err);
       }
-      db = require('mongojs')(dbURL, ['services', 'infos', 'rooms']);
+      console.log('auth source: ', authSource);
+      if (!authSource) {
+	dbConnectURL = dbURL;
+      } else {
+	dbConnectURL = dbURL + '?authSource=' + authSource;
+      }
+      console.log('connect url: ', dbConnectURL);
+      db = require('mongojs')(dbConnectURL, ['services', 'infos', 'rooms']);
       next();
     });
   } else {
-    db = require('mongojs')(dbURL, ['services', 'infos', 'rooms']);
+    if (!authSource) {
+      dbConnectURL = dbURL;
+    } else {
+      dbConnectURL = dbURL + '?authSource=' + authSource;
+    }
+    db = require('mongojs')(dbConnectURL, ['services', 'infos', 'rooms']);
     next();
   }
 }

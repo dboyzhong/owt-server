@@ -14,3 +14,4 @@ port = 5672 #default: 5672
 
 [mongo]
 dataBaseURL = "localhost/owtdb" #default: "localhost/owtdb"
+#authSource = "admin"

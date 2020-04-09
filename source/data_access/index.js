@@ -8,6 +8,7 @@ global.config = global.config || {};
 global.config.mongo = global.config.mongo || {};
 global.config.mongo.dataBaseURL = global.config.mongo.dataBaseURL || 'localhost/owtdb';
 var databaseUrl = global.config.mongo.dataBaseURL;
+var authSource = global.config.mongo.authSource;
 
 var fs = require('fs');
 var cipher = require('../cipher');
@@ -37,6 +38,9 @@ if (fs.existsSync(cipher.astore)) {
   cipher.unlock(cipher.k, cipher.astore, function cb (err, authConfig) {
     if (!err) {
       if (authConfig.mongo) {
+        if (authSource) {
+            connectOption.auth = { "authSource": authSource };
+        }
         connectOption.user = authConfig.mongo.username;
         connectOption.pass = authConfig.mongo.password;
       }

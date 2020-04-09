@@ -8,6 +8,7 @@ this=`cd "$this"; pwd`
 ROOT=`cd "${this}/.."; pwd`
 
 DB_URL='localhost/owtdb'
+DB_AUTH_SOURCE='admin'
 
 usage() {
   echo
@@ -17,6 +18,7 @@ usage() {
   echo
   echo "Usage:"
   echo "    --dburl=HOST/DBNAME                 specify mongodb URL other than default \`localhost/owtdb'"
+  echo "    --db-auth-source=AUTH_SOURCE        specify mongodb auth source other than default \`localhost/owtdb'"
   echo "    --help                              print this help"
   echo
 }
@@ -35,6 +37,7 @@ check_node_version() {
 install_config() {
   echo -e "\x1b[32mInitializing ManagementAPIServer configuration...\x1b[0m"
   export DB_URL
+  export DB_AUTH_SOURCE
   [[ -s ${this}/initdb.js ]] && node ${this}/initdb.js && return 0
   [[ -s ${this}/initdb ]] && ${this}/initdb || return 1
 }
@@ -45,6 +48,10 @@ while [[ $# -gt 0 ]]; do
     *(-)dburl=* )
       DB_URL=$(echo $1 | cut -d '=' -f 2)
       echo -e "\x1b[36musing $DB_URL\x1b[0m"
+      ;;
+    *(-)auth_source=* )
+      AUTH_SOURCE=$(echo $1 | cut -d '=' -f 2)
+      echo -e "\x1b[36musing $AUTH_SOURCE\x1b[0m"
       ;;
     *(-)help )
       usage
