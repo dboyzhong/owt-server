@@ -21,8 +21,14 @@ class TimingMetric {
     finish() {
         let end_time = new Date();
         this.interval = (end_time - this.startTs);
-        let inf = JSON.stringify({type: 'duration', name: this.name, start_time: this.startTs, end_time: end_time, 
-            time_cost: this.interval + 'ms', details: this.metrics});
+        let inf = JSON.stringify({
+            type: 'duration',
+            name: this.name,
+            start_time: this.startTs,
+            end_time: end_time,
+            time_cost: this.interval + 'ms',
+            details: this.metrics
+        });
         log.info(inf);
     }
 };
@@ -34,7 +40,7 @@ var MetricGather = (function() {
     function newTimingMetric(group, name, key) {
         let metricKey = name + '-' + key;
         let metric = new TimingMetric(name, key);
-        if(!groups.has(group)) {
+        if (!groups.has(group)) {
             groups.set(group, new Map());
         }
         groups.get(group).set(metricKey, metric);
@@ -43,9 +49,9 @@ var MetricGather = (function() {
 
     function getTimingMetric(group, name, key) {
         let metricKey = name + '-' + key;
-        if(groups.has(group)) {
+        if (groups.has(group)) {
             groups.get(group);
-            if(groups.get(group).has(metricKey)) {
+            if (groups.get(group).has(metricKey)) {
                 return groups.get(group).get(metricKey);
             }
         }
@@ -58,40 +64,61 @@ var MetricGather = (function() {
 
     function finishTimingMetric(group, name, key) {
         let metricKey = name + '-' + key;
-        if(groups.has(group)) {
-            if(groups.get(group).has(metricKey)) {
+        if (groups.has(group)) {
+            if (groups.get(group).has(metricKey)) {
                 groups.get(group).get(metricKey).finish();
                 groups.get(group).delete(metricKey);
             }
-            if(groups.get(group).size == 0) {
+            if (groups.get(group).size == 0) {
                 groups.delete(group);
             }
         }
     }
 
     function finishGroup(group) {
-        if(groups.has(group)) {
-            groups.get(group).forEach((value, key)=>{
+        if (groups.has(group)) {
+            groups.get(group).forEach((value, key) => {
                 value.finish();
             });
             groups.delete(group);
         }
     }
 
+    function getGroup(group) {
+        if (groups.has(group)) {
+            return groups.get(group);
+        }
+        return null;
+    }
+
+    function forEachWithGroup(group, callback) {
+        if (groups.has(group)) {
+            let pos = -1;
+            groups.get(group).forEach((value, nameKey) => {
+                pos = nameKey.indexOf('-');
+                if (pos != -1) {
+                    callback(nameKey.slice(0, pos), nameKey.slice(pos + 1), value);
+                }
+            });
+        }
+    }
+
     function doNormalMetric(name, val) {
-        let inf = JSON.stringify({type: 'normal', name: name, start_time: new Date(), details: val});
-        log.info(inf);        
+        let inf = JSON.stringify({ type: 'normal', name: name, start_time: new Date(), details: val });
+        log.info(inf);
     }
 
     return {
-        newTimingMetric : newTimingMetric,
-        getTimingMetric : getTimingMetric,
-        size            : size, 
+        newTimingMetric: newTimingMetric,
+        getTimingMetric: getTimingMetric,
+        size: size,
         finishTimingMetric: finishTimingMetric,
-        finishGroup     : finishGroup,
-        doNormalMetric  : doNormalMetric
+        finishGroup: finishGroup,
+        doNormalMetric: doNormalMetric,
+        getGroup: getGroup,
+        forEachWithGroup: forEachWithGroup
     };
 
 }());
 
-module.exports = MetricGather; 
+module.exports = MetricGather;
