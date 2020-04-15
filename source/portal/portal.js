@@ -241,22 +241,40 @@ var Portal = function(spec, rpcReq) {
     return Promise.resolve(result);
   };
 
-  setInterval(() = >{
-    var roomMetric = {}
+  setInterval(() =>{
+    let roomMetric = {};
+    let roomCount = 0;
+    let totalMetric = {rooms_count:0, publish_count:0, subscribe_count:0};
     for (let p in participants) {
       let room = participants[p].in_room;
+      if(room === undefined) {
+        continue;
+      }
       if (roomMetric[room] === undefined) {
         roomMetric[room] = {};
+        roomCount += 1;
+        totalMetric.rooms_count += 1;
       }
-      metricGather.forEachWithGroup(p, (name, key, value) = >{
+      metricGather.forEachWithGroup(p, (name, key, value) =>{
         if (roomMetric[room][name] === undefined) {
           roomMetric[room][name] = 1;
         } else {
           roomMetric[room][name] += 1;
         }
+
+        if(name == PUBLISH_DURATION) {
+          totalMetric.publish_count += 1;
+        } else if(name == SUBSCRIBE_DURATION) {
+          totalMetric.subscribe_count += 1;
+        }
       });
     }
-    metricGather.doNormalMetric('rooms_stat', roomMetric);
+
+    for(let r in roomMetric) {
+        metricGather.doNormalMetric('rooms_stat', {room: r, count: roomMetric[r]});
+    }
+
+    metricGather.doNormalMetric('total_rooms_stat', totalMetric);
   },
   30 * 1000);
 
