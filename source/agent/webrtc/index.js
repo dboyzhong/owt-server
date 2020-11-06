@@ -13,18 +13,14 @@ var logger = require('../logger').logger;
 // Logger
 var log = logger.getLogger('WebrtcNode');
 
-var addon = require('../webrtcLib/build/Release/webrtc');
+var addon = require('../rtcConn/build/Release/rtcConn.node');
 
 var threadPool = new addon.ThreadPool(global.config.webrtc.num_workers || 24);
 threadPool.start();
 
-// We don't use Nicer connection now
-var ioThreadPool = new addon.IOThreadPool(global.config.webrtc.io_workers || 1);
-
-if (global.config.webrtc.use_nicer) {
-  log.info('Starting ioThreadPool');
-  ioThreadPool.start();
-}
+// ThreadPool for libnice connection's main loop
+var ioThreadPool = new addon.IOThreadPool(global.config.webrtc.io_workers || 8);
+ioThreadPool.start();
 
 module.exports = function (rpcClient, selfRpcId, parentRpcId, clusterWorkerIP) {
     var that = {
