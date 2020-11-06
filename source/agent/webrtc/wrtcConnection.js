@@ -162,6 +162,7 @@ module.exports = function (spec, on_status, on_mediaUpdate) {
     ridStreamMap = new Map(),
     isSimulcast = false,
     transportSeqNumExt = -1,
+    has_offer = false,
     wrtc;
 
   /*
@@ -438,6 +439,11 @@ module.exports = function (spec, on_status, on_mediaUpdate) {
   that.onSignalling = function (msg) {
     var processSignalling = function () {
       if (msg.type === 'offer') {
+        if(true === has_offer) {
+          log.info('sessionId:', wrtcId, 'offer already received');
+          return
+        }
+        
         log.debug('on offer:', msg.sdp);
         checkOffer(msg.sdp, function () {
           var {
@@ -445,6 +451,7 @@ module.exports = function (spec, on_status, on_mediaUpdate) {
             audioFormat,
             videoFormat
           } = processOffer(msg.sdp, formatPreference, direction);
+          has_offer = true;
           msg.sdp = sdp;
           audio_fmt = audioFormat;
           video_fmt = videoFormat;
